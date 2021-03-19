@@ -37,53 +37,77 @@ const resetPosition = assign({
   py: 0,
 });
 
-const machine = createMachine({
-  initial: 'idle',
-  context: {
-    x: 0,
-    y: 0,
-    dx: 0,
-    dy: 0,
-    px: 0,
-    py: 0,
-    drags: 0,
-  },
-  states: {
-    idle: {
-      on: {
-        mousedown: {
-          // Don't select this transition unless
-          // there are < 5 drags
-          // ...
-          actions: assignPoint,
-          target: 'dragging',
-        },
-      },
-    },
-    dragging: {
-      // Whenever we enter this state, we want to
-      // increment the drags count.
-      // ...
-      on: {
-        mousemove: {
-          actions: assignDelta,
-        },
-        mouseup: {
-          actions: [assignPosition],
-          target: 'idle',
-        },
-        'keyup.escape': {
-          target: 'idle',
-          actions: resetPosition,
-        },
-      },
-    },
-  },
+const resetPositionFull = assign({
+  x: 0,
+  y: 0,
+  dx: 0,
+  dy: 0,
+  px: 0,
+  py: 0,
 });
+
+const preventToMuchDrag = context => context.drags < 5;
+
+const incrementDrag = assign({
+  drags: ({ drags }) => drags + 1,
+});
+
+const machine = createMachine(
+  {
+    initial: 'idle',
+    context: {
+      x: 0,
+      y: 0,
+      dx: 0,
+      dy: 0,
+      px: 0,
+      py: 0,
+      drags: 0,
+    },
+    states: {
+      idle: {
+        on: {
+          mousedown: {
+            // Don't select this transition unless
+            // there are < 5 drags
+            actions: assignPoint,
+            target: 'dragging',
+            cond: 'preventToMuchDrag',
+          },
+        },
+      },
+      dragging: {
+        entry: incrementDrag,
+        // Whenever we enter this state, we want to
+        // increment the drags count.
+        // ...
+        on: {
+          mousemove: {
+            actions: assignDelta,
+          },
+          mouseup: {
+            actions: assignPosition,
+            target: 'idle',
+          },
+
+          'keyup.escape': {
+            target: 'idle',
+            actions: resetPosition,
+          },
+        },
+      },
+    },
+  },
+  {
+    guards: {
+      preventToMuchDrag,
+    },
+  }
+);
 
 const service = interpret(machine);
 
-service.onTransition((state) => {
+service.onTransition(state => {
   if (state.changed) {
     console.log(state.context);
 
@@ -99,19 +123,19 @@ service.onTransition((state) => {
 
 service.start();
 
-elBox.addEventListener('mousedown', (event) => {
+elBox.addEventListener('mousedown', event => {
   service.send(event);
 });
 
-elBody.addEventListener('mousemove', (event) => {
+elBody.addEventListener('mousemove', event => {
   service.send(event);
 });
 
-elBody.addEventListener('mouseup', (event) => {
+elBody.addEventListener('mouseup', event => {
   service.send(event);
 });
 
-elBody.addEventListener('keyup', (e) => {
+elBody.addEventListener('keyup', e => {
   if (e.key === 'Escape') {
     service.send('keyup.escape');
   }

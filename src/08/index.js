@@ -1,4 +1,5 @@
 import { createMachine, assign, interpret } from 'xstate';
+import { mapContext } from 'xstate/lib/utils';
 
 const elBox = document.querySelector('#box');
 const elBody = document.body;
@@ -37,50 +38,55 @@ const resetPosition = assign({
   py: 0,
 });
 
-const dragDropMachine = createMachine({
-  initial: 'idle',
-  context: {
-    x: 0,
-    y: 0,
-    dx: 0,
-    dy: 0,
-    px: 0,
-    py: 0,
-  },
-  states: {
-    idle: {
-      on: {
-        mousedown: {
-          actions: assignPoint,
-          target: 'dragging',
+const dragDropMachine = (delay = 2000) =>
+  createMachine({
+    initial: 'idle',
+    context: {
+      x: 0,
+      y: 0,
+      dx: 0,
+      dy: 0,
+      px: 0,
+      py: 0,
+    },
+    states: {
+      idle: {
+        on: {
+          mousedown: {
+            actions: assignPoint,
+            target: 'dragging',
+          },
         },
       },
-    },
-    dragging: {
-      on: {
-        mousemove: {
-          actions: assignDelta,
-          internal: false,
-        },
-        mouseup: {
-          actions: [assignPosition],
-          target: 'idle',
-        },
-        'keyup.escape': {
-          target: 'idle',
+      dragging: {
+        after: {
+          [delay]: 'idle',
           actions: resetPosition,
         },
+        on: {
+          mousemove: {
+            actions: assignDelta,
+            internal: false,
+          },
+          mouseup: {
+            actions: [assignPosition],
+            target: 'idle',
+          },
+          'keyup.escape': {
+            target: 'idle',
+            actions: resetPosition,
+          },
+        },
+        // Transition to 'idle' after 2 seconds
+        // using a delayed transition.
+        // ...
       },
-      // Transition to 'idle' after 2 seconds
-      // using a delayed transition.
-      // ...
     },
-  },
-});
+  });
 
-const service = interpret(dragDropMachine);
+const service = interpret(dragDropMachine());
 
-service.onTransition((state) => {
+service.onTransition(state => {
   elBox.dataset.state = state.value;
 
   if (state.changed) {
@@ -93,19 +99,19 @@ service.onTransition((state) => {
 
 service.start();
 
-elBox.addEventListener('mousedown', (event) => {
+elBox.addEventListener('mousedown', event => {
   service.send(event);
 });
 
-elBody.addEventListener('mousemove', (event) => {
+elBody.addEventListener('mousemove', event => {
   service.send(event);
 });
 
-elBody.addEventListener('mouseup', (event) => {
+elBody.addEventListener('mouseup', event => {
   service.send(event);
 });
 
-elBody.addEventListener('keyup', (e) => {
+elBody.addEventListener('keyup', e => {
   if (e.key === 'Escape') {
     service.send('keyup.escape');
   }

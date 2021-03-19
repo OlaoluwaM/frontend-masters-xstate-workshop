@@ -38,51 +38,81 @@ const resetPosition = assign({
   py: 0,
 });
 
-const dragDropMachine = createMachine({
-  // The initial state should check auth status instead.
-  initial: 'idle',
-  context: {
-    x: 0,
-    y: 0,
-    dx: 0,
-    dy: 0,
-    px: 0,
-    py: 0,
-    user: undefined,
-  },
-  states: {
-    // Add two states:
-    // - checkingAuth (with transient transitions)
-    // - unauthorized
-    idle: {
-      on: {
-        mousedown: {
-          actions: assignPoint,
-          target: 'dragging',
+function checkAuthStatus({ user }) {
+  return !!!user;
+}
+
+const dragDropMachine = createMachine(
+  {
+    // The initial state should check auth status instead.
+    initial: 'idle',
+    context: {
+      x: 0,
+      y: 0,
+      dx: 0,
+      dy: 0,
+      px: 0,
+      py: 0,
+      user: { name: 'Olaoluwa' },
+    },
+    states: {
+      // Add two states:
+      // - checkingAuth (with transient transitions)
+      // - unauthorized
+      idle: {
+        on: {
+          mousedown: {
+            actions: assignPoint,
+            target: 'dragging',
+          },
+          '': {
+            target: 'unauthorized',
+            cond: 'checkAuthStatus',
+          },
         },
       },
-    },
-    dragging: {
-      on: {
-        mousemove: {
-          actions: assignDelta,
+      dragging: {
+        on: {
+          mousemove: {
+            actions: assignDelta,
+          },
+          mouseup: {
+            actions: [assignPosition],
+            target: 'idle',
+          },
+          'keyup.escape': {
+            target: 'idle',
+            actions: resetPosition,
+          },
         },
-        mouseup: {
-          actions: [assignPosition],
-          target: 'idle',
+      },
+      unauthorized: {
+        on: {
+          click: {
+            target: 'idle',
+            actions: 'authorizeUser',
+          },
         },
-        'keyup.escape': {
-          target: 'idle',
-          actions: resetPosition,
-        },
+        exit: () => alert('You have been authorized'),
       },
     },
   },
-});
+  {
+    actions: {
+      authorizeUser: assign({
+        user: true,
+      }),
+    },
+
+    guards: {
+      checkAuthStatus,
+    },
+  }
+);
 
 const service = interpret(dragDropMachine);
 
-service.onTransition((state) => {
+service.onTransition(state => {
   elBox.dataset.state = state.value;
 
   if (state.changed) {
@@ -97,20 +127,22 @@ service.onTransition((state) => {
 
 service.start();
 
-elBox.addEventListener('mousedown', (event) => {
+elBox.addEventListener('mousedown', event => {
   service.send(event);
 });
 
-elBody.addEventListener('mousemove', (event) => {
+elBody.addEventListener('mousemove', event => {
   service.send(event);
 });
 
-elBody.addEventListener('mouseup', (event) => {
+elBody.addEventListener('mouseup', event => {
   service.send(event);
 });
 
-elBody.addEventListener('keyup', (e) => {
+elBody.addEventListener('keyup', e => {
   if (e.key === 'Escape') {
     service.send('keyup.escape');
   }
 });
+
+elButton.addEventListener('click', service.send);

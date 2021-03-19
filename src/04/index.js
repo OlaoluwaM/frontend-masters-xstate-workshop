@@ -1,4 +1,4 @@
-import { actions, createMachine, interpret } from 'xstate';
+import { createMachine, interpret } from 'xstate';
 
 const elBox = document.querySelector('#box');
 
@@ -7,7 +7,6 @@ elBox.setAttribute('data-point', JSON.stringify({}, null, 2));
 const setPoint = (context, event) => {
   // Set the data-point attribute of `elBox`
   const mousePositionObject = { x: event.clientX, y: event.clientY };
-  console.log(mousePositionObject);
   elBox.setAttribute('data-point', JSON.stringify(mousePositionObject, null, 2));
 };
 
