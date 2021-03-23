@@ -30,6 +30,18 @@ const assignDelta = assign({
   },
 });
 
+const assignDeltaX = assign({
+  dx: (context, event) => {
+    return event.clientX - context.px;
+  },
+});
+
+const assignDeltaY = assign({
+  dy: (context, event) => {
+    return event.clientY - context.py;
+  },
+});
+
 const resetPosition = assign({
   dx: 0,
   dy: 0,
@@ -62,15 +74,56 @@ const dragDropMachine = createMachine({
       // that transitions to a "locked" x-axis behavior
       // when the shift key is pressed.
       // ...
+      initial: 'unlocked',
+      states: {
+        unlocked: {
+          on: {
+            LOCK_X: {
+              target: 'xAxis',
+            },
+
+            LOCK_Y: {
+              target: 'yAxis',
+            },
+          },
+        },
+
+        xAxis: {
+          on: {
+            mousemove: {
+              actions: assignDeltaX,
+            },
+
+            'keyup.shift': {
+              target: 'unlocked',
+            },
+          },
+        },
+
+        yAxis: {
+          on: {
+            mousemove: {
+              actions: assignDeltaY,
+            },
+
+            'keyup.alt': {
+              target: 'unlocked',
+            },
+          },
+        },
+      },
+
       on: {
         mousemove: {
           actions: assignDelta,
           internal: false,
         },
+
         mouseup: {
           actions: [assignPosition],
           target: 'idle',
         },
+
         'keyup.escape': {
           target: 'idle',
           actions: resetPosition,
@@ -82,7 +135,7 @@ const dragDropMachine = createMachine({
 
 const service = interpret(dragDropMachine);
 
-service.onTransition((state) => {
+service.onTransition(state => {
   elBox.dataset.state = state.toStrings().join(' ');
 
   if (state.changed) {
@@ -95,24 +148,50 @@ service.onTransition((state) => {
 
 service.start();
 
-elBox.addEventListener('mousedown', (event) => {
+elBox.addEventListener('mousedown', event => {
   service.send(event);
 });
 
-elBody.addEventListener('mousemove', (event) => {
+elBody.addEventListener('mousemove', event => {
   service.send(event);
 });
 
-elBody.addEventListener('mouseup', (event) => {
+elBody.addEventListener('mouseup', event => {
   service.send(event);
 });
 
-elBody.addEventListener('keyup', (e) => {
-  if (e.key === 'Escape') {
-    service.send('keyup.escape');
+elBody.addEventListener('keyup', e => {
+  switch (e.key) {
+    case 'Escape':
+      service.send('keyup.escape');
+      break;
+
+    case 'Shift':
+      service.send('keyup.shift');
+      break;
+
+    case 'Alt':
+      service.send('keyup.alt');
+      break;
+
+    default:
+      break;
   }
 });
 
 // Add event listeners for keyup and keydown on the body
 // to listen for the 'Shift' key.
-// ...
+elBody.addEventListener('keydown', e => {
+  switch (e.key) {
+    case 'Shift':
+      service.send('LOCK_X');
+      break;
+
+    case 'Alt':
+      service.send('LOCK_Y');
+      break;
+
+    default:
+      break;
+  }
+});
